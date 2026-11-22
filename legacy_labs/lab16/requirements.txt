@@ -1,0 +1,9 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pymongo==4.9.1
+cassandra-driver==3.29.1
+neo4j==5.25.0
+python-dotenv==1.0.1
+pydantic==2.11.7
+reportlab==4.2.2
+pytest==8.3.3

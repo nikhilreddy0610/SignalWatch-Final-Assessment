@@ -1,0 +1,56 @@
+MONGODB LAB 9 - WRITE CONCERN AND NETWORK PARTITIONS
+Submission report
+
+Name: K J NIKHIL REDDY
+USN: 24TRCL091
+
+Docker Hub image
+https://hub.docker.com/r/nikhil1386/mongodb-lab9
+Image: nikhil1386/mongodb-lab9:latest
+
+LAB 9.1 - WRITE CONCERN LATENCY
+
+Method: sequentially insert 1,000 small documents for each configuration in a
+three-member MongoDB 7 replica set. Average latency is total insert-call time
+divided by 1,000. The table shows one measured local Docker run; results vary
+with storage, scheduling, and host load.
+
+Configuration                    Total (s)   Average (ms/write)   P50 (ms)   P99 (ms)
+-------------------------------------------------------------------------------------
+w:1, j:false                       1.054           1.053           0.625      7.282
+w:1, j:true                       11.261          11.258           2.030     32.336
+w:majority, j:false               12.177          12.173           6.774     68.531
+w:majority, j:true                 9.382           9.378           4.658     45.005
+w:3 (all members), j:false         7.741           7.738           2.937     43.571
+w:3 (all members), j:true         14.820          14.813           5.569     72.678
+
+MongoDB accepts numeric w values, "majority", or configured tag modes; it does
+not accept a literal w:"all". For this three-member replica set, w:3 waits for
+all three data-bearing members. w:1 was fastest in this run because it waits
+only for the primary. Majority and w:3 took longer overall because the primary
+waits for replication acknowledgments. j:true requests journal persistence.
+The stronger replication concerns took longer overall, consistent with waiting
+for member acknowledgments. w:majority with j:true happened to be faster than
+with j:false, while w:1 with j:true had a high average despite a much lower
+median. This non-monotonic result illustrates the effect of outliers and
+scheduling in a single run; rerun the benchmark and compare medians before
+drawing conclusions about small differences.
+
+LAB 9.2 - NETWORK PARTITION
+
+The lab disconnected mongo2 for 30 seconds. The primary and mongo3 remained
+connected and retained a voting majority. Both probe writes succeeded:
+  w:1        acknowledged in 17.33 ms
+  w:majority acknowledged in 74.31 ms
+
+During the partition, rs.status() on mongo1 showed mongo1 PRIMARY, mongo2
+"(not reachable/healthy)" with health 0, and mongo3 SECONDARY with health 1.
+After reconnection, mongo2 returned as SECONDARY. This shows that one member
+can be isolated without losing the majority in a three-member set. Losing both
+secondaries would remove the primary's majority; after the election timeout
+the primary steps down and majority writes cannot be acknowledged.
+
+Reproduce the demonstrations:
+  ./labctl.sh up
+  ./labctl.sh benchmark
+  ./labctl.sh partition

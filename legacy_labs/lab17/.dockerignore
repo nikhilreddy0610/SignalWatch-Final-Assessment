@@ -1,0 +1,8 @@
+.env
+.git
+.venv
+__pycache__
+*.py[cod]
+benchmark/results/benchmark_data.*
+reports
+.DS_Store

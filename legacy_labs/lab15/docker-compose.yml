@@ -1,0 +1,24 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: mongo-lab15
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  api:
+    image: nikhil1386/mongodb-lab15:latest
+    container_name: lab15-api
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URI: mongodb://mongo:27017/?directConnection=true
+      DB_NAME: saas_app
+      JWT_SECRET: lab15-demo-secret
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+volumes:
+  mongo-data:

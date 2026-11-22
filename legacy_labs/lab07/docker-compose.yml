@@ -1,0 +1,29 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    image: signalwatch-cti:lab7
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DATABASE: cyber_threat_intelligence
+      HOST: 0.0.0.0
+      PORT: "5000"
+    ports:
+      - "${HOST_PORT:-5001}:5000"
+
+volumes:
+  mongo-data:

@@ -1,0 +1,24 @@
+Replica set members after tested failover:
+[
+  {
+    name: 'mongo1:27017',
+    stateStr: 'SECONDARY'
+  },
+  {
+    name: 'mongo2:27017',
+    stateStr: 'PRIMARY'
+  },
+  {
+    name: 'mongo3:27017',
+    stateStr: 'SECONDARY'
+  }
+]
+
+Compose services:
+NAME                      IMAGE       COMMAND                  SERVICE   CREATED         STATUS                   PORTS
+lab-131-docker-mongo1-1   mongo:7.0   "docker-entrypoint.s…"   mongo1    2 minutes ago   Up 2 minutes (healthy)   127.0.0.1:27117->27017/tcp
+lab-131-docker-mongo2-1   mongo:7.0   "docker-entrypoint.s…"   mongo2    2 minutes ago   Up 2 minutes (healthy)   127.0.0.1:27118->27017/tcp
+lab-131-docker-mongo3-1   mongo:7.0   "docker-entrypoint.s…"   mongo3    2 minutes ago   Up 2 minutes (healthy)   127.0.0.1:27119->27017/tcp
+
+Shared keyfile metadata:
+mongodb:mongodb mode=400 path=/etc/mongo-keyfile/keyfile

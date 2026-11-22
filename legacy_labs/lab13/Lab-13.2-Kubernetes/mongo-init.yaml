@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongo-init-script
+data:
+  init-replica-set.js: |
+    const admin = db.getSiblingDB("admin");
+    let initialized = false;
+    try {
+      const status = admin.runCommand({ replSetGetStatus: 1 });
+      if (status.ok === 1) {
+        initialized = true;
+      } else if (status.code !== 94 && status.codeName !== "NotYetInitialized") {
+        throw new Error(JSON.stringify(status));
+      }
+    } catch (error) {
+      if (error.code !== 94 && error.codeName !== "NotYetInitialized") throw error;
+    }
+    if (initialized) {
+      print("Replica set is already initialized.");
+    } else {
+      const result = rs.initiate({
+        _id: "rs0",
+        members: [
+          { _id: 0, host: "mongo-0.mongo-headless:27017" },
+          { _id: 1, host: "mongo-1.mongo-headless:27017" },
+          { _id: 2, host: "mongo-2.mongo-headless:27017" }
+        ]
+      });
+      if (result.ok !== 1) throw new Error(JSON.stringify(result));
+      print("Replica set rs0 initialized.");
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongo-init-rs
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: initialize
+          image: mongo:7.0
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              until mongosh --quiet --host mongo-0.mongo-headless -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; do
+                echo "Waiting for mongo-0..."
+                sleep 3
+              done
+              mongosh --quiet --host mongo-0.mongo-headless -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --file /scripts/init-replica-set.js
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-auth
+                  key: username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-auth
+                  key: password
+          volumeMounts:
+            - name: init-script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: init-script
+          configMap:
+            name: mongo-init-script

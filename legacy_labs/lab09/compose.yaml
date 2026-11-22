@@ -1,0 +1,43 @@
+services:
+  mongo1:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    volumes:
+      - mongo1_data:/data/db
+    networks:
+      - lab9
+
+  mongo2:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    volumes:
+      - mongo2_data:/data/db
+    networks:
+      - lab9
+
+  mongo3:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    volumes:
+      - mongo3_data:/data/db
+    networks:
+      - lab9
+
+  lab:
+    image: ${DOCKERHUB_IMAGE:-nikhil1386/mongodb-lab9:latest}
+    profiles: ["tools"]
+    environment:
+      REPLICA_SET_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0
+      RESULTS_CSV: /results/write_concern_results.csv
+    volumes:
+      - ./results:/results
+    networks:
+      - lab9
+
+volumes:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
+
+networks:
+  lab9:

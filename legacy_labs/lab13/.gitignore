@@ -1,0 +1,10 @@
+.DS_Store
+.env
+**/.env
+**/secrets/
+*.pem
+*.key
+*.log
+__pycache__/
+.venv/
+*.py[cod]

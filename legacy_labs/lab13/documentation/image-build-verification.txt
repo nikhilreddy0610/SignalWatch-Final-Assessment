@@ -1,0 +1,3 @@
+Image=[nikhil1386/mongodb-lab13-demo:latest] Architecture=arm64 Size=95440153
+PASS: PyMongo 4.20.0
+PASS: project resources included; credentials and keyfile excluded

@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+benchmark/results/benchmark_data.*
+benchmark/results/metrics.json
+benchmark/results/comparison.csv
+benchmark/results/latency_recall.png
+reports/*.pdf
+reports/*.png
+reports/*.csv
+.DS_Store

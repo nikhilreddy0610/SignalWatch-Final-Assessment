@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0b1018">
+    <title>SignalWatch | Cyber Threat Intelligence</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="SignalWatch home">
+        <span class="brand-mark">S</span>
+        <span>Signal<span class="brand-accent">Watch</span></span>
+      </a>
+      <div class="topbar-right">
+        <span class="live-indicator"><i></i><span id="mode-label">CONNECTING</span></span>
+        <button class="button button-quiet" id="refresh-button" type="button">↻ Refresh feeds</button>
+      </div>
+    </header>
+    <nav class="tabs" aria-label="Main navigation">
+      <button class="tab active" data-page="dashboard" type="button">Threat feed</button>
+      <button class="tab" data-page="schema-lab" type="button">Lab 7.1 · Schema</button>
+      <button class="tab" data-page="working-set-lab" type="button">Lab 7.2 · Working set</button>
+    </nav>
+
+    <main>
+      <section class="page active" id="dashboard">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">OPEN SOURCE INTELLIGENCE · LIVE FEED</p>
+            <h1>Threat intelligence</h1>
+            <p class="subheading">Search reports, inspect indicators, and review defensive context.</p>
+          </div>
+          <span class="updated" id="last-updated">DEMO DATA</span>
+        </div>
+        <div class="stats-grid" id="stats-grid" aria-live="polite">
+          <article class="stat-card"><span class="stat-label">Reports</span><strong id="stat-reports">—</strong><small>indexed reports</small></article>
+          <article class="stat-card"><span class="stat-label">Sources</span><strong id="stat-sources">—</strong><small>trusted publishers</small></article>
+          <article class="stat-card"><span class="stat-label">Indicators</span><strong id="stat-indicators">—</strong><small>linked IOCs</small></article>
+          <article class="stat-card"><span class="stat-label">Categories</span><strong id="stat-categories">—</strong><small>threat classes</small></article>
+        </div>
+
+        <div class="content-grid">
+          <section class="panel feed-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow">INTELLIGENCE STREAM</p><h2>Latest reports</h2></div>
+              <span class="result-count" id="result-count"></span>
+            </div>
+            <div class="filters">
+              <label class="search-wrap"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Search reports, topics, indicators…" autocomplete="off"></label>
+              <select id="category-filter" aria-label="Filter by classification">
+                <option value="all">All classifications</option>
+                <option value="vulnerability">Vulnerability</option>
+                <option value="ransomware">Ransomware</option>
+                <option value="phishing">Phishing</option>
+                <option value="malware">Malware</option>
+                <option value="espionage">Espionage</option>
+                <option value="threat-intel">Threat intel</option>
+                <option value="unclassified">Unclassified</option>
+              </select>
+            </div>
+            <div class="report-list" id="report-list" aria-live="polite">
+              <div class="empty-state">Loading intelligence reports…</div>
+            </div>
+          </section>
+          <aside class="panel classifier-panel">
+            <p class="eyebrow">TRIAGE TOOL</p>
+            <h2>Classify a report</h2>
+            <p class="muted">Run a transparent keyword-based first pass. Always verify findings with trusted sources.</p>
+            <form id="classifier-form">
+              <label class="field-label" for="classifier-text">Report text or indicators</label>
+              <textarea id="classifier-text" rows="7" maxlength="10000" placeholder="Paste a headline or short report summary…"></textarea>
+              <button class="button button-primary full-width" type="submit">Analyze classification</button>
+            </form>
+            <div class="classification-result" id="classification-result" aria-live="polite">
+              <span class="muted small">Classification results appear here.</span>
+            </div>
+            <div class="notice"><strong>Educational only</strong><br>Keyword matching is not a threat verdict or a substitute for analyst review.</div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="page" id="schema-lab">
+        <div class="page-heading">
+          <div><p class="eyebrow">MONGODB DATA MODELING</p><h1>Lab 7.1 · Production schema</h1><p class="subheading">A measurable embed-versus-reference design for threat intelligence.</p></div>
+          <span class="lab-tag">BSON SIZE ANALYSIS</span>
+        </div>
+        <section class="panel">
+          <div class="panel-heading"><div><p class="eyebrow">MEASURED WITH $bsonSize</p><h2>Document footprint</h2></div><span class="lab-tag" id="schema-mode">DEMO</span></div>
+          <div class="size-summary">
+            <div><span class="stat-label">Average document</span><strong id="average-size">—</strong></div>
+            <div><span class="stat-label">Largest document</span><strong id="maximum-size">—</strong></div>
+            <div><span class="stat-label">MongoDB hard limit</span><strong>16 MiB</strong></div>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Collection</th><th>Documents</th><th>Average size</th><th>Largest document</th></tr></thead><tbody id="schema-table"></tbody></table>
+          </div>
+          <p class="pass-line" id="size-verdict">Checking document sizes…</p>
+        </section>
+        <section class="panel schema-panel">
+          <div class="panel-heading"><div><p class="eyebrow">RELATIONSHIP DECISIONS</p><h2>What is embedded and what is referenced?</h2></div></div>
+          <div class="relationship-grid">
+            <article class="relationship-card embedded"><span class="relation-type">EMBEDDED</span><h3>Report → tags and classification</h3><p>Small, bounded values are read with their report and rarely need independent updates. Embedding avoids extra reads.</p></article>
+            <article class="relationship-card referenced"><span class="relation-type">REFERENCED</span><h3>Report → source</h3><p><code>sourceId</code> points to a source shared by many reports. Source metadata changes independently; embedding it everywhere causes duplication and fan-out updates.</p><p class="alternative"><strong>Embedded alternative:</strong> copy <code>{name, trustTier, url}</code> into each report. Report cards can then render in one read, but updates can leave stale copies.</p></article>
+            <article class="relationship-card referenced"><span class="relation-type">REFERENCED</span><h3>Report → indicators</h3><p><code>indicatorIds</code> refer to reusable IOC documents. The relationship can be many-to-many; indicators have their own confidence, type, and lifecycle.</p><p class="alternative"><strong>Embedded alternative:</strong> store each indicator's type, value, and confidence inside the report. That speeds report-with-IOCs reads, but duplicates shared IOCs and complicates corrections and global IOC search.</p></article>
+          </div>
+          <div class="redesign-callout">
+            <span class="callout-icon">↳</span><div><strong>Try it yourself · Embed the source marking an actual threat</strong><p>For a report classified as an actual threat, embed a source snapshot and the analyst's threat assessment in that report. A report-detail query becomes one document read, without a source lookup. Global source edits, correcting the assessment across reports, and cross-report source comparisons become harder; retain <code>sourceId</code> if normalized source management is still needed.</p></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" id="working-set-lab">
+        <div class="page-heading">
+          <div><p class="eyebrow">WIREDTIGER CACHE OBSERVATION</p><h1>Lab 7.2 · Working set</h1><p class="subheading">Observe how a randomized ~200 MiB dataset behaves in the storage cache.</p></div>
+          <span class="lab-tag">100,000 × ~2 KiB</span>
+        </div>
+        <div class="stats-grid lab-stats">
+          <article class="stat-card"><span class="stat-label">Target records</span><strong>100,000</strong><small>sensor readings</small></article>
+          <article class="stat-card"><span class="stat-label">Per document</span><strong>~2 KiB</strong><small>BSON encoded</small></article>
+          <article class="stat-card"><span class="stat-label">Approx. data size</span><strong>~195 MiB</strong><small>before indexes / overhead</small></article>
+          <article class="stat-card"><span class="stat-label">Sampling cadence</span><strong>10 sec</strong><small>cache ratio + new reports</small></article>
+        </div>
+        <div class="content-grid lab-content">
+          <section class="panel">
+            <p class="eyebrow">RUN THE MONITOR</p><h2>Seed and observe</h2>
+            <p class="muted">Run this from the project directory with MongoDB reachable. It seeds the working set once, then samples WiredTiger while reading random records and checking the configured RSS sources for new reports.</p>
+            <pre><code>python scripts/lab_02_working_set_analysis.py</code></pre>
+            <p class="muted small">To explicitly replace the lab collection: <code>python scripts/lab_02_working_set_analysis.py --reset</code>. Stop monitoring with Ctrl-C.</p>
+          </section>
+          <section class="panel">
+            <p class="eyebrow">INTERPRETING SERVERSTATUS</p><h2>Cache hit ratio</h2>
+            <p class="muted">The script estimates interval hits as <code>1 − Δ(pages read into cache) / Δ(pages requested from the cache)</code>. It also reports cache bytes in use, configured maximum, pages loaded, and application-thread evictions.</p>
+            <p class="muted">A high hit ratio with few evictions suggests the sampled working set is warm. A rising read-in rate and evictions can indicate cache pressure. This estimate is workload- and interval-dependent; it is not a universal WiredTiger metric.</p>
+          </section>
+        </div>
+      </section>
+    </main>
+    <footer><span>SignalWatch · MongoDB Lab 7</span><span>Open-source reporting · verify before acting</span></footer>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

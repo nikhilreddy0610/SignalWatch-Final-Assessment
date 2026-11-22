@@ -1,0 +1,11 @@
+Field               Value
+ID:                 b6a03a1a
+State:              disabled
+Mode:               kind
+Node Count:         1
+Version:            1.36.1
+Progress Message:   Kubernetes is stopped
+Error:              None
+valid YAML: Lab-13.2-Kubernetes/mongo-headless-svc.yaml (1 document(s))
+valid YAML: Lab-13.2-Kubernetes/mongo-statefulset.yaml (1 document(s))
+valid YAML: Lab-13.2-Kubernetes/mongo-init.yaml (2 document(s))

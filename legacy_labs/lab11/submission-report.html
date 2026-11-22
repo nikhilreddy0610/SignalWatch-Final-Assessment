@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>MongoDB Sharding Labs 11.1 and 11.2</title>
+  <style>
+    @page { size: letter; margin: 0.65in; }
+    body { font: 10pt -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172033; line-height: 1.45; }
+    h1 { font-size: 24pt; color: #14213d; margin-bottom: 4pt; }
+    h2 { font-size: 15pt; color: #14213d; margin-top: 20pt; border-bottom: 1px solid #9aa8bd; padding-bottom: 4pt; }
+    h3 { font-size: 11pt; margin-top: 12pt; }
+    .subtitle { color: #526078; margin-top: 0; }
+    .callout { background: #edf3fa; border-left: 4px solid #2672bd; padding: 9pt 12pt; margin: 12pt 0; }
+    .warning { background: #fff4e5; border-left-color: #bf6900; }
+    table { border-collapse: collapse; width: 100%; font-size: 8pt; margin: 8pt 0 12pt; }
+    th { background: #17233c; color: #fff; text-align: left; }
+    th, td { border: 1px solid #c5ccda; padding: 6pt; vertical-align: top; }
+    tr:nth-child(even) td { background: #f3f5f9; }
+    code { font: 8.5pt Menlo, Consolas, monospace; background: #f0f2f6; padding: 1pt 3pt; }
+    pre { white-space: pre-wrap; background: #f0f2f6; padding: 8pt; font: 8pt Menlo, Consolas, monospace; }
+    a { color: #155da5; }
+    .small { font-size: 8.5pt; color: #526078; }
+  </style>
+</head>
+<body>
+  <h1>MongoDB Sharding Labs</h1>
+  <p class="subtitle">Lab 11.1: Evaluate Shard Key Choices &nbsp;|&nbsp; Lab 11.2: Shard Key Hotspot Detection</p>
+  <p><strong>Student:</strong> K J NIKHIL REDDY &nbsp; <strong>USN:</strong> 24BTRCL091</p>
+
+  <div class="callout">
+    <strong>Environment:</strong> MongoDB 7.0, Docker Compose, two shard replica sets,
+    a config-server replica set, and mongos. The demo uses single-node replica sets
+    for coursework only; it is not a production topology.
+  </div>
+
+  <h2>Lab 11.1 — Shard-key decision matrix</h2>
+  <table>
+    <thead><tr><th>Candidate</th><th>Cardinality</th><th>Distribution</th><th>Query targeting</th><th>Hotspot risk</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td><code>order_id</code></td><td>Very high, usually unique.</td><td>Even for random IDs; potentially skewed for sequential values.</td><td>Targets order lookup; customer and date queries scatter.</td><td>Depends on generation; monotonically increasing IDs can hotspot.</td><td>Good if order-ID lookup dominates.</td></tr>
+      <tr><td><code>customer_id</code></td><td>High when there are many customers.</td><td>May skew when a few customers generate many orders.</td><td>Targets a customer's order history.</td><td>One very active customer remains on one shard.</td><td>Good for customer locality; less balanced under customer skew.</td></tr>
+      <tr><td><code>order_date</code></td><td>High over time, but clustered by time.</td><td>New values concentrate in the highest range chunk.</td><td>Efficient date ranges; customer queries scatter.</td><td>High for insert-heavy workloads with an ascending range key.</td><td>Avoid as the sole key for write-heavy orders.</td></tr>
+      <tr><td><code>customer_id: "hashed"</code></td><td>High; inherited from customer IDs.</td><td>Generally even across distinct customer values.</td><td>Customer equality lookup targets one shard; date ranges scatter.</td><td>Low across distinct customers; hashing cannot split one hot customer.</td><td>Recommended when customer-scoped reads dominate.</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Recommendation:</strong> Among the four candidates, use
+  <code>{customer_id: "hashed"}</code> when customer order history is the dominant
+  access pattern. It balances distinct customers while allowing equality lookups
+  to target a shard. Validate with real workload measurements: hashing does not
+  distribute one customer's orders, and it sacrifices range locality.</p>
+
+  <h3>MongoDB 5.0+ resharding overview</h3>
+  <ol>
+    <li>Check cluster health, version compatibility, unique-index rules, globally unique
+      <code>_id</code> values, collection features, active index builds, and available resources.</li>
+    <li>Disable the balancer and issue <code>reshardCollection</code> through mongos,
+      specifying the collection and new shard key.</li>
+    <li>Monitor the operation through <code>$currentOp</code>. After completion, verify
+      data, chunk placement, and application query plans; then re-enable the balancer.</li>
+  </ol>
+  <p>Resharding copies data and catches up concurrent writes. Plan for high I/O/CPU,
+  temporary extra storage, increased latency, and a brief write-blocking critical
+  section. Unique indexes must satisfy shard-key requirements; duplicate
+  <code>_id</code> values can cause failure, and queryable-encryption collections
+  are unsupported. Only one collection resharding/move/unshard/rewrite operation
+  runs at a time. Consult the version-specific
+  <a href="https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/">MongoDB resharding documentation</a>.</p>
+
+  <h2>Lab 11.2 — Hotspot demonstration</h2>
+  <p>The Compose lab inserted 10,000 documents into each collection on a two-shard
+  MongoDB 7.0 cluster.</p>
+  <table>
+    <thead><tr><th>Collection</th><th>Shard key</th><th>Observed per-shard count</th><th>Range-query plan</th></tr></thead>
+    <tbody>
+      <tr><td><code>hotspot_data</code></td><td><code>{ts: 1}</code></td><td>shard2RS: 10,000</td><td>Date range targeted shard2RS (SINGLE_SHARD).</td></tr>
+      <tr><td><code>even_data</code></td><td><code>{user_id: "hashed"}</code></td><td>shard1RS: 4,970; shard2RS: 5,030</td><td>Same date range scattered to both shards (SHARD_MERGE).</td></tr>
+    </tbody>
+  </table>
+  <p>An equality query on the hashed <code>user_id</code> targeted one shard.
+  A range query on that hashed field scattered to both shards. These plans were
+  verified with <code>explain()</code>; per-shard counts were read with
+  <code>collStats</code>.</p>
+  <p>Increasing timestamp values continually target the highest range chunk, which
+  creates a write hotspot even if the collection can later be balanced. Hashed
+  values distribute distinct keys across chunks, but lose ordered range locality.
+  A ranged key remains appropriate when range queries are central and insertion
+  rate or key design avoids a single active upper-bound chunk.</p>
+
+  <h2>Docker demonstration and submission</h2>
+  <p>The source builds a local lab-runner image and runs both activities with:</p>
+  <pre>docker compose up -d config shard1 shard2 mongos
+docker compose run --rm initialize
+docker compose --profile tools run --rm lab all</pre>
+  <p><strong>Target Docker Hub repository:</strong>
+    <a href="https://hub.docker.com/r/nikhil1386/mongodb-sharding-lab11">https://hub.docker.com/r/nikhil1386/mongodb-sharding-lab11</a></p>
+  <div class="callout warning">
+    <strong>Publishing status:</strong> The image push succeeded. The Docker Hub
+    tag is <code>nikhil1386/mongodb-sharding-lab11:1.0</code> (digest
+    <code>sha256:f1ea080d2ddce6c9aa7ea500bddd8b7172dab72e4cee1d3dae28d4a182dc22ff</code>).
+    The Compose lab service is configured to use this image.
+  </div>
+  <p class="small">Validation: Python syntax check, Docker Compose configuration,
+  image build, cluster initialization, insertion of 20,000 total documents,
+  per-shard statistics, and query routing plans all succeeded.</p>
+</body>
+</html>

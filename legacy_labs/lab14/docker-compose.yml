@@ -1,0 +1,27 @@
+services:
+  mongo:
+    image: mongo:7.0
+    ports:
+      - "27021:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "mongodb://localhost:27017/admin", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  lab14:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nikhil1386/mongodb-lab14-demo:1.0.0
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGODB_URI: mongodb://mongo:27017
+      BACKUP_OUTPUT_DIR: /app/backups
+      LOG_DIR: /app/logs
+    volumes:
+      - ./backups:/app/backups
+      - ./logs:/app/logs
+    command: ["python3", "monitoring.py"]

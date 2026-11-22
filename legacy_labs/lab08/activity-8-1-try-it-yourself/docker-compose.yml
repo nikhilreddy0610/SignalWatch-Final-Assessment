@@ -1,0 +1,27 @@
+services:
+  data1:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs1", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27117:27017"
+    volumes:
+      - arbiter_data1:/data/db
+  data2:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs1", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27118:27017"
+    volumes:
+      - arbiter_data2:/data/db
+  arbiter-rs1:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs1", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27119:27017"
+    volumes:
+      - arbiter_data3:/data/db
+
+volumes:
+  arbiter_data1:
+  arbiter_data2:
+  arbiter_data3:

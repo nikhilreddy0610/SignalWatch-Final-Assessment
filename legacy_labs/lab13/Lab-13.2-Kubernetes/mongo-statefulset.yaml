@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+spec:
+  serviceName: mongo-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: install-keyfile
+          image: mongo:7.0
+          command:
+            - /bin/bash
+            - -ec
+            - cp /key-source/keyfile /key-ready/keyfile && chown 999:999 /key-ready/keyfile && chmod 0400 /key-ready/keyfile
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: keyfile-source
+              mountPath: /key-source
+              readOnly: true
+            - name: keyfile
+              mountPath: /key-ready
+      containers:
+        - name: mongod
+          image: mongo:7.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - mongod
+            - --replSet
+            - rs0
+            - --bind_ip_all
+            - --keyFile
+            - /etc/mongo-keyfile/keyfile
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-auth
+                  key: username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-auth
+                  key: password
+          ports:
+            - name: mongo
+              containerPort: 27017
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - mongosh --quiet --host localhost -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval 'db.adminCommand({ping:1}).ok' | grep -q 1
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - mongosh --quiet --host localhost -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval 'db.adminCommand({ping:1}).ok' | grep -q 1
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+            - name: keyfile
+              mountPath: /etc/mongo-keyfile
+              readOnly: true
+      volumes:
+        - name: keyfile-source
+          secret:
+            secretName: mongo-keyfile
+            defaultMode: 0444
+        - name: keyfile
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi

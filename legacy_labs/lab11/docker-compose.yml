@@ -1,0 +1,54 @@
+services:
+  config:
+    image: mongo:7.0
+    command: ["mongod", "--configsvr", "--replSet", "cfgRS", "--port", "27019", "--bind_ip_all"]
+    volumes:
+      - config-data:/data/configdb
+
+  shard1:
+    image: mongo:7.0
+    command: ["mongod", "--shardsvr", "--replSet", "shard1RS", "--port", "27018", "--bind_ip_all"]
+    volumes:
+      - shard1-data:/data/db
+
+  shard2:
+    image: mongo:7.0
+    command: ["mongod", "--shardsvr", "--replSet", "shard2RS", "--port", "27018", "--bind_ip_all"]
+    volumes:
+      - shard2-data:/data/db
+
+  mongos:
+    image: mongo:7.0
+    command: ["mongos", "--configdb", "cfgRS/config:27019", "--bind_ip_all", "--port", "27017"]
+    depends_on:
+      - config
+      - shard1
+      - shard2
+    ports:
+      - "27017"
+
+  initialize:
+    image: mongo:7.0
+    command: ["bash", "/scripts/init-cluster.sh"]
+    volumes:
+      - ./scripts/init-cluster.sh:/scripts/init-cluster.sh:ro
+    depends_on:
+      - mongos
+      - config
+      - shard1
+      - shard2
+
+  lab:
+    image: nikhil1386/mongodb-sharding-lab11:1.0
+    environment:
+      MONGODB_URI: mongodb://mongos:27017
+      DOCUMENT_COUNT: "10000"
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+    profiles: ["tools"]
+
+volumes:
+  config-data:
+  shard1-data:
+  shard2-data:

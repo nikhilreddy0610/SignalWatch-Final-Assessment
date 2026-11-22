@@ -1,0 +1,130 @@
+services:
+  keyfile-init:
+    image: mongo:7.0
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        if [ ! -s /keyfile/keyfile ]; then
+          openssl rand -base64 756 > /keyfile/keyfile
+        fi
+        chown 999:999 /keyfile/keyfile
+        chmod 0400 /keyfile/keyfile
+    volumes:
+      - mongo-keyfile:/keyfile
+    restart: "no"
+    networks: [mongo-net]
+
+  mongo1:
+    image: mongo:7.0
+    hostname: mongo1
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/mongo-keyfile/keyfile"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?Run ./generate-keyfile.sh first}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?Run ./generate-keyfile.sh first}
+    ports:
+      - "127.0.0.1:27117:27017"
+    volumes:
+      - mongo1-data:/data/db
+      - mongo-keyfile:/etc/mongo-keyfile:ro
+    depends_on:
+      keyfile-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --host localhost -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.adminCommand({ping:1}).ok' | grep -q 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks: [mongo-net]
+
+  mongo2:
+    image: mongo:7.0
+    hostname: mongo2
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/mongo-keyfile/keyfile"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?Run ./generate-keyfile.sh first}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?Run ./generate-keyfile.sh first}
+    ports:
+      - "127.0.0.1:27118:27017"
+    volumes:
+      - mongo2-data:/data/db
+      - mongo-keyfile:/etc/mongo-keyfile:ro
+    depends_on:
+      keyfile-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --host localhost -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.adminCommand({ping:1}).ok' | grep -q 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks: [mongo-net]
+
+  mongo3:
+    image: mongo:7.0
+    hostname: mongo3
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/mongo-keyfile/keyfile"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?Run ./generate-keyfile.sh first}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?Run ./generate-keyfile.sh first}
+    ports:
+      - "127.0.0.1:27119:27017"
+    volumes:
+      - mongo3-data:/data/db
+      - mongo-keyfile:/etc/mongo-keyfile:ro
+    depends_on:
+      keyfile-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --host localhost -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.adminCommand({ping:1}).ok' | grep -q 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks: [mongo-net]
+
+  init-replica-set:
+    image: mongo:7.0
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        until mongosh --quiet --host mongo1 -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; do
+          sleep 2
+        done
+        exec mongosh --quiet --host mongo1 -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --file /scripts/init-replica-set.js
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?Run ./generate-keyfile.sh first}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?Run ./generate-keyfile.sh first}
+    volumes:
+      - ./init-replica-set.js:/scripts/init-replica-set.js:ro
+    depends_on:
+      mongo1:
+        condition: service_healthy
+      mongo2:
+        condition: service_healthy
+      mongo3:
+        condition: service_healthy
+    restart: "no"
+    networks: [mongo-net]
+
+  pymongo-test:
+    build:
+      context: ..
+      dockerfile: Lab-13.1-Docker/Dockerfile
+    profiles: ["test"]
+    environment:
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:?Run ./generate-keyfile.sh first}:${MONGO_INITDB_ROOT_PASSWORD:?Run ./generate-keyfile.sh first}@mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0&authSource=admin
+    depends_on:
+      init-replica-set:
+        condition: service_completed_successfully
+    networks: [mongo-net]
+
+volumes:
+  mongo1-data:
+  mongo2-data:
+  mongo3-data:
+  mongo-keyfile:
+
+networks:
+  mongo-net:
+    driver: bridge

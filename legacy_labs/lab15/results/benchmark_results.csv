@@ -1,0 +1,7 @@
+strategy,operation,avg_seconds,measurements
+document,list,0.0008263374998932705,20
+document,create,0.002522541649523191,20
+document,analytics,0.0005592749992501922,20
+collection,list,0.0005097625005873851,20
+collection,create,0.002977899998950306,20
+collection,analytics,0.0003101062509813346,20

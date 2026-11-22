@@ -1,0 +1,28 @@
+services:
+  mongo:
+    image: mongo:7.0
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "${MONGO_PORT:-27020}:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --eval 'try { rs.status().ok } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "mongo:27017"}]}).ok }' | grep -q 1
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  app:
+    image: nikhil1386/mongodb-lab10:latest
+    environment:
+      MONGO_URI: mongodb://mongo:27017/?replicaSet=rs0
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongodb_data:

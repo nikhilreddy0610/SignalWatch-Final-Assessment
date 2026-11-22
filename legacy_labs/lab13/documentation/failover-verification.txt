@@ -1,0 +1,25 @@
+ Container lab-131-docker-mongo1-1 Running 
+ Container lab-131-docker-mongo2-1 Running 
+ Container lab-131-docker-mongo3-1 Running 
+ Container lab-131-docker-keyfile-init-1 Starting 
+ Container lab-131-docker-keyfile-init-1 Started 
+ Container lab-131-docker-keyfile-init-1 Waiting 
+ Container lab-131-docker-keyfile-init-1 Waiting 
+ Container lab-131-docker-keyfile-init-1 Waiting 
+ Container lab-131-docker-keyfile-init-1 Exited 
+ Container lab-131-docker-keyfile-init-1 Exited 
+ Container lab-131-docker-keyfile-init-1 Exited 
+ Container lab-131-docker-mongo2-1 Waiting 
+ Container lab-131-docker-mongo3-1 Waiting 
+ Container lab-131-docker-mongo1-1 Waiting 
+ Container lab-131-docker-mongo3-1 Healthy 
+ Container lab-131-docker-mongo1-1 Healthy 
+ Container lab-131-docker-mongo2-1 Healthy 
+ Container lab-131-docker-init-replica-set-1 Starting 
+ Container lab-131-docker-init-replica-set-1 Started 
+ Container lab-131-docker-init-replica-set-1 Waiting 
+ Container lab-131-docker-init-replica-set-1 Exited 
+ Container lab-131-docker-pymongo-test-run-b6e6c19c0804 Creating 
+ Container lab-131-docker-pymongo-test-run-b6e6c19c0804 Created 
+Current primary: mongo1:27017
+PASS: failover elected a different primary: mongo2:27017
