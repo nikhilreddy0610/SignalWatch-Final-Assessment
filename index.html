@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <title>SignalWatch — Threat Intelligence</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <span class="eyebrow">THREAT INTELLIGENCE · MONGODB + OLLAMA</span>
+      <h1>SignalWatch</h1>
+      <p>Understand the evidence. Ask better questions. Make safer decisions.</p>
+    </div>
+    <div class="header-status">
+      <span class="badge" id="health" role="status">Checking services…</span>
+      <span class="badge secondary" id="accessState">API access open</span>
+    </div>
+  </header>
+  <main>
+    <section class="toolbar" aria-label="Dashboard controls">
+      <label>Platform
+        <select id="platform">
+          <option>All</option><option>Windows</option><option>Linux</option><option>macOS</option><option>Android</option><option>iOS</option>
+        </select>
+      </label>
+      <button id="apiKey" class="button secondary">Set API key</button>
+      <button id="clearKey" class="button secondary">Clear key</button>
+      <button id="refresh" class="button secondary">Refresh</button>
+      <button id="feeds" class="button secondary">Refresh threat feeds</button>
+      <button id="scan" class="button secondary">Scan this laptop</button>
+    </section>
+
+    <section class="grid" aria-label="Threat lifecycle counts">
+      <article class="stat"><small>Anticipated</small><strong id="anticipated">—</strong></article>
+      <article class="stat"><small>Active</small><strong id="active">—</strong></article>
+      <article class="stat"><small>Evolving</small><strong id="evolving">—</strong></article>
+      <article class="stat"><small>Resolved</small><strong id="resolved">—</strong></article>
+    </section>
+
+    <section class="panel">
+      <div class="panelhead">
+        <div><span class="section-kicker">RECORDS</span><h2>Threat intelligence</h2><p>Only analyst-added records and clearly marked synthetic examples are shown here.</p></div>
+      </div>
+      <form id="threatForm" class="form-grid">
+        <label>Title<input name="title" required maxlength="300" placeholder="Threat or advisory title"></label>
+        <label>Platform<select name="platform"><option>All</option><option>Windows</option><option>Linux</option><option>macOS</option><option>Android</option><option>iOS</option></select></label>
+        <label>Lifecycle<select name="status"><option value="anticipated">Anticipated</option><option value="active">Active</option><option value="evolving">Evolving</option><option value="resolved">Resolved</option></select></label>
+        <label>Severity<input name="severity" maxlength="80" placeholder="e.g. high, informational"></label>
+        <label>CVE / advisory ID<input name="cve" maxlength="80" placeholder="Optional"></label>
+        <label>Evidence URL<input name="source_url" type="url" maxlength="1500" placeholder="https://…"></label>
+        <label class="wide">Summary<textarea name="summary" required maxlength="4000" rows="2" placeholder="What is known, and what remains uncertain?"></textarea></label>
+        <label class="wide">Safe mitigation guidance<textarea name="mitigation" maxlength="3000" rows="2" placeholder="Optional; include verification and rollback considerations"></textarea></label>
+        <div class="wide form-actions"><button class="button primary" type="submit">Add threat record</button><span class="muted" id="threatFormMessage" aria-live="polite"></span></div>
+      </form>
+      <div class="filter-row">
+        <label>Search threats<input id="threatSearch" type="search" placeholder="Title, CVE, or summary"></label>
+        <label>Lifecycle<select id="threatStatus"><option value="">All statuses</option><option value="anticipated">Anticipated</option><option value="active">Active</option><option value="evolving">Evolving</option><option value="resolved">Resolved</option></select></label>
+      </div>
+      <div id="threats" class="card-list" aria-live="polite">Loading threats…</div>
+    </section>
+
+    <section class="panel">
+      <div class="panelhead"><div><span class="section-kicker">UNVERIFIED LEADS</span><h2>External intelligence</h2><p>RSS items are leads only; verify them against authoritative sources before treating them as threats.</p></div></div>
+      <div id="feeditems" class="card-list">No feed leads loaded.</div>
+    </section>
+
+    <section class="panel chat-panel">
+      <div class="panelhead chat-heading">
+        <div><span class="section-kicker">YOUR ASSISTANT</span><h2>Ask SignalWatch</h2><p>Friendly answers grounded in Labs 7–18, threat records, scan findings, and cited sources.</p></div>
+        <div class="session-controls"><span class="muted" id="sessionLabel"></span><button id="newChat" class="button secondary">New chat</button><button id="clearChat" class="button secondary">Clear history</button></div>
+      </div>
+      <div id="chatlog" class="chatlog" role="log" aria-live="polite"></div>
+      <div id="sources" class="source-list" aria-live="polite"></div>
+      <form id="chatform">
+        <label class="sr-only" for="question">Your message</label>
+        <textarea id="question" placeholder="Ask a question or follow up…" required maxlength="4000" rows="2"></textarea>
+        <button id="send" class="button primary">Send</button>
+      </form>
+      <p class="chat-note">SignalWatch won’t run commands or change your device. Review all suggested actions before using them.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panelhead"><div><span class="section-kicker">LOCAL INVENTORY</span><h2>Device findings</h2><p>Advisory matches are informational, not proof of exploitation. Findings are generated by the explicit read-only scanner.</p></div></div>
+      <div class="filter-row">
+        <label>Search findings<input id="findingSearch" type="search" placeholder="Package, CVE, title"></label>
+        <label>Platform<select id="findingPlatform"><option value="">All platforms</option><option>Windows</option><option>Linux</option><option>macOS</option></select></label>
+        <label>Review status<select id="findingStatus"><option value="">All statuses</option><option value="needs_review">Needs review</option></select></label>
+        <label>Severity<input id="findingSeverity" type="search" placeholder="e.g. see_advisory"></label>
+      </div>
+      <div id="findings" class="card-list">No scan findings loaded.</div>
+    </section>
+  </main>
+  <footer>SignalWatch coursework assessment · Local-first · Human approval required for remediation</footer>
+  <dialog id="editThreatDialog">
+    <form id="editThreatForm" method="dialog" class="form-grid dialog-form">
+      <h2 class="wide">Edit threat record</h2>
+      <input type="hidden" name="id">
+      <label class="wide">Title<input name="title" required maxlength="300"></label>
+      <label>Platform<select name="platform"><option>All</option><option>Windows</option><option>Linux</option><option>macOS</option><option>Android</option><option>iOS</option></select></label>
+      <label>Lifecycle<select name="status"><option value="anticipated">Anticipated</option><option value="active">Active</option><option value="evolving">Evolving</option><option value="resolved">Resolved</option></select></label>
+      <label class="wide">Summary<textarea name="summary" required maxlength="4000" rows="3"></textarea></label>
+      <label class="wide">Safe mitigation guidance<textarea name="mitigation" maxlength="3000" rows="2"></textarea></label>
+      <div class="wide form-actions"><button id="cancelThreatEdit" class="button secondary" type="button">Cancel</button><button id="saveThreat" class="button primary" type="submit">Save changes</button></div>
+    </form>
+  </dialog>
+  <script src="/static/app.js"></script>
+</body>
+</html>

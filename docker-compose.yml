@@ -1,0 +1,29 @@
+services:
+  mongo:
+    image: mongo:7.0
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes: [signalwatch_data:/data/db]
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'try { rs.status().ok } catch(e) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"mongo:27017\"}]}).ok }' | grep -q 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  api:
+    build: .
+    image: signalwatch-threat-intelligence:latest
+    ports: ["8000:8000"]
+    environment:
+      MONGO_URI: mongodb://mongo:27017/?replicaSet=rs0
+      MONGO_DB: signalwatch
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      API_TOKEN: ${API_TOKEN:-}
+      CHAT_RATE_LIMIT_PER_MINUTE: ${CHAT_RATE_LIMIT_PER_MINUTE:-30}
+      CORS_ORIGINS: http://localhost:8501,http://127.0.0.1:8501
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on:
+      mongo: {condition: service_healthy}
+    restart: unless-stopped
+volumes:
+  signalwatch_data:
